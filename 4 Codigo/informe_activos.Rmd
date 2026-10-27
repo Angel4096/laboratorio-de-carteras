@@ -1,0 +1,2053 @@
+---
+title: "planteamiento del proyecto"
+author: "Angel Santiago Barrantes Montoya"
+date: "2026-09-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Proyecto: Modelación estadística para inversiones de corto plazo
+
+## 1. Planteamiento del problema
+
+Una serie de precios bursátiles no es una muestra de observaciones independientes e idénticamente distribuidas. Es la realización de un proceso estocástico cuyo nivel no es estacionario: la media y la varianza del precio dependen del momento en que se observen, de modo que estadísticos como el promedio o la desviación estándar del precio carecen de interpretación estable. Esta es la primera dificultad práctica que enfrenta cualquier análisis financiero aplicado, y la que obliga a trabajar no sobre el precio sino sobre una transformación suya.
+
+La transformación habitual es el rendimiento logarítmico, definido como el logaritmo del cociente entre dos cierres consecutivos. Su uso no es arbitrario: estabiliza la varianza, convierte los cambios porcentuales en una escala aditiva en el tiempo y elimina buena parte de la tendencia que hace no estacionario al precio. Sin embargo, resolver el problema del nivel no resuelve el problema de la forma. Los rendimientos financieros presentan de manera sistemática colas más pesadas que las de una distribución normal, agrupamiento de volatilidad —periodos tranquilos seguidos de periodos agitados— y valores extremos que no son errores de medición sino parte legítima del fenómeno. En consecuencia, los estadísticos construidos sobre el supuesto de normalidad, empezando por la media aritmética y el coeficiente de correlación de Pearson, se vuelven frágiles justamente en los tramos que más importan para una decisión de inversión.
+
+A esta dificultad distribucional se suma una de estructura de dependencia. En la práctica financiera se asume que la asociación entre dos activos queda resumida por un coeficiente de correlación lineal, y que un valor cercano a cero autoriza a tratarlos como independientes. Ambas afirmaciones son aproximaciones. La correlación lineal solo captura la componente lineal de la relación; la correlación de rangos amplía el alcance a relaciones monótonas, pero sigue siendo ciega a dependencias que se manifiestan en la magnitud de los movimientos y no en su dirección. Determinar hasta qué punto estas medidas describen adecuadamente la asociación entre activos reales es, en sí mismo, un problema estadístico.
+
+El presente trabajo aborda estas cuestiones en su etapa exploratoria, sobre una muestra construida deliberadamente heterogénea de veintiún instrumentos distribuidos en ocho estratos: acciones (Tesla, Google, Microsoft y Anglo American, esta última como aproximación al mercado del diamante), índices bursátiles (S&P 500, STOXX Europe 600 y Nasdaq-100), materias primas negociadas mediante futuros (petróleo WTI, gas natural, oro, plata y cobre), renta fija (bonos del Tesoro de Estados Unidos a más de veinte años), divisas (índice del dólar y euro), criptoactivos (bitcoin y ethereum), volatilidad implícita (índice VIX) y productos inversos (fondos que replican el movimiento diario contrario del S&P 500, del Nasdaq-100 y del oro). La heterogeneidad es intencional: si los patrones distribucionales y de dependencia que se buscan son propios de los mercados financieros y no de un sector concreto, deben aparecer en clases de activos con mecanismos de formación de precios, liquidez y exposición al ciclo económico distintos entre sí.
+
+Los productos inversos cumplen un papel particular dentro de la muestra. Por construcción, su rendimiento diario es un múltiplo negativo del rendimiento de otro activo que también forma parte del estudio, de modo que su correlación con ese activo debe ser cercana a −1. Funcionan así como casos de control: permiten comprobar que las medidas de asociación empleadas recuperan una dependencia conocida de antemano y, al mismo tiempo, muestran qué ocurre en una cartera cuando se combinan activos con correlación fuertemente negativa.
+
+La obtención de los datos planteó además un problema operativo con consecuencias estadísticas directas. Los veintiún activos no comparten calendario de negociación: los criptoactivos cotizan todos los días del año, los contratos de futuros operan en jornadas en que las bolsas de acciones permanecen cerradas y el índice europeo sigue su propio calendario de festivos. Tampoco comparten la hora de cierre: el STOXX Europe 600 cierra varias horas antes que la bolsa de Nueva York y los criptoactivos cierran a medianoche en tiempo universal. Alinear las series por posición en lugar de por fecha produciría un desfase creciente entre ellas y, con él, coeficientes de asociación carentes de sentido. Este detalle, que rara vez se menciona en los tratamientos introductorios, condiciona toda la sección de correlaciones del informe.
+
+## 2. Pregunta de investigación
+
+¿Qué estructura distribucional y de dependencia presentan los rendimientos diarios de un conjunto heterogéneo de activos financieros, y en qué medida las medidas de asociación basadas en rangos y en distancias describen esa dependencia con mayor fidelidad que los estadísticos clásicos apoyados en supuestos de normalidad y linealidad?
+
+De esta pregunta se desprenden cuatro interrogantes operativos que orientan el análisis:
+
+- ¿Presentan las distintas clases de activos, dentro de una misma ventana temporal, comportamientos distribucionales comparables en cuanto a dispersión, asimetría y presencia de valores atípicos?
+
+- ¿Coinciden las conclusiones sobre la asociación entre activos cuando se emplea un coeficiente sensible únicamente a relaciones monótonas frente a uno capaz de detectar cualquier forma de dependencia?
+
+- ¿Es estable en el tiempo la relación de cada activo con el índice de referencia, o los coeficientes agregados del periodo ocultan regímenes de comportamiento distintos?
+
+- ¿Qué aportan a una cartera los activos con correlación fuertemente negativa, y a qué costo en términos de rendimiento?
+
+## 3. Objetivo general
+
+Caracterizar el comportamiento distribucional y la estructura de dependencia de los rendimientos logarítmicos diarios de una muestra heterogénea de veintiún activos financieros, mediante análisis exploratorio de datos y medidas de asociación robustas a la presencia de valores extremos, tomando el S&P 500 como referencia de mercado para evaluar el desempeño relativo de cada instrumento y el efecto de combinar activos con correlación negativa.
+
+## 4. Objetivos específicos
+
+- Diseñar y ejecutar un procedimiento propio de extracción de información bursátil que garantice trazabilidad y reproducibilidad, y delimitar una ventana muestral común que haga comparables entre sí a los veintiún activos seleccionados.
+
+- Transformar las series de precios en rendimientos logarítmicos y diagnosticar la calidad de cada base en cuanto a tipos de variable, completitud y cardinalidad, identificando las limitaciones que cada activo impone al análisis posterior.
+
+- Cuantificar la presencia de valores atípicos en precios, volumen y rendimientos mediante el criterio de rango intercuartílico, y estimar su efecto sobre las medidas de tendencia central con el fin de justificar el uso de estadísticos robustos.
+
+- Describir la forma de las distribuciones de las variables originales y de los rendimientos a través de histogramas, contrastando el comportamiento de las distintas clases de activos.
+
+- Medir la asociación entre los veintiún activos mediante el coeficiente de correlación de Spearman y la correlación de distancias, comparar ambos resultados para distinguir la dependencia monótona de la dependencia general, e identificar los pares con correlación fuertemente negativa.
+
+- Evaluar el desempeño de cada activo frente al S&P 500 mediante regresión lineal sobre los rendimientos diarios, y examinar la estabilidad temporal de esa relación a través de correlaciones calculadas sobre ventanas móviles.
+
+- Evaluar el resultado de combinar en una misma cartera activos con correlación fuertemente negativa, y contrastarlo con el de combinar activos con correlación cercana a cero, para distinguir entre cubrir y diversificar.
+
+## 5. Justificación
+
+El trabajo se articula sobre los contenidos de tres asignaturas, y conviene explicitar de qué manera interviene cada una.
+
+**Muestreo.** La selección de los veintiún activos no obedece a un procedimiento aleatorio sino a un diseño intencional estratificado por clase de activo, con ocho estratos: acciones, índices bursátiles, materias primas, renta fija, divisas, criptoactivos, volatilidad implícita y productos inversos. Esta decisión tiene una consecuencia que debe declararse: los resultados describen la muestra observada y no admiten inferencia probabilística hacia el universo de instrumentos cotizados, puesto que no existe un marco muestral con probabilidades de selección conocidas. A cambio, el diseño garantiza la presencia de contrastes que un muestreo aleatorio simple difícilmente habría producido con veintiún unidades. Dentro de ese diseño, los productos inversos se incorporaron de forma deliberada como unidades de control, porque su relación con otros activos de la muestra se conoce de antemano. La delimitación de una ventana temporal común cumple una función análoga a la de un control experimental: al obligar a que todos los activos se observen sobre el mismo periodo, se evita que las diferencias entre ellos se confundan con diferencias entre regímenes de mercado.
+
+**Series de tiempo.** El objeto de estudio es una sucesión ordenada de observaciones, no un conjunto intercambiable de ellas, y el orden es informativo. El paso del precio al rendimiento logarítmico es la primera operación propia de la materia: transforma una serie integrada en una aproximadamente estacionaria en media, estabiliza la varianza y permite que los rendimientos de periodos sucesivos se sumen en lugar de multiplicarse, propiedad que se aprovecha directamente al construir las trayectorias acumuladas del informe. El análisis mediante ventanas móviles pertenece igualmente a este ámbito: al recalcular un coeficiente sobre subperiodos consecutivos se abandona el supuesto de parámetros constantes y se abre la puerta a los modelos de dependencia temporal y volatilidad variable que constituyen la continuación natural de este trabajo. La alineación de las series por fecha, y el cálculo de los rendimientos después de alinear los precios, responde a la misma lógica: garantizar que cada observación de un activo corresponda al mismo intervalo de tiempo que la de los demás.
+
+**Estadística no paramétrica.** El diagnóstico de valores atípicos realizado sobre cada base proporciona la justificación empírica del enfoque. Cuando una proporción apreciable de las observaciones cae fuera del rango intercuartílico, y cuando la exclusión de esos puntos desplaza la media de manera sustantiva, los procedimientos que dependen de supuestos distribucionales pierden fiabilidad. Las medidas basadas en rangos, como el coeficiente de Spearman, resuelven parte del problema: al sustituir los valores por su posición ordinal se vuelven invariantes ante transformaciones monótonas y acotan la influencia de los extremos. Pero conservan una limitación importante, y es que un valor nulo no implica independencia. La correlación de distancias supera esa restricción, ya que se anula si y solo si las variables son independientes y detecta por tanto relaciones no lineales que los coeficientes anteriores no registran. Emplear ambas medidas en paralelo no es redundante: su discrepancia es informativa, siempre que se tenga en cuenta que el estimador muestral de la correlación de distancias tiene un sesgo positivo, cuya magnitud se cuantifica en la sección de correlaciones.
+
+La pertinencia práctica del enfoque es directa. Las decisiones de diversificación y las medidas de riesgo de una cartera descansan sobre estimaciones de correlación. Si esas estimaciones se obtienen con un coeficiente que no capta la forma real de la dependencia, o si se asume constante una relación que cambia a lo largo del tiempo, el riesgo efectivamente asumido difiere del riesgo calculado. La inclusión de activos con correlación fuertemente negativa permite además examinar una distinción que suele confundirse en la práctica: diversificar reduce el riesgo sin renunciar al rendimiento, mientras que cubrir reduce el riesgo a costa de anular también el rendimiento. Verificar estos supuestos sobre datos reales, antes de construir cualquier modelo predictivo, es el propósito de esta etapa del proyecto.
+
+## 6. Origen y construcción de los datos
+
+La información procede de Yahoo Finance y fue obtenida mediante un extractor propio desarrollado en Python (`Scrapper multiactivo excel.py`), que consulta el histórico diario completo de cada instrumento, calcula el rendimiento y el rango porcentual de cada jornada, y consolida el resultado en un único archivo de Excel con una hoja por activo. Un segundo procedimiento (`exportar_csv.py`) recorta las series a la ventana común de análisis y las exporta en formato CSV, que es el insumo directo de este informe. Los tickers consultados fueron los siguientes:
+
+| Activo | Ticker | Clase | Mercado |
+|---|---|---|---|
+| Tesla | TSLA | Acción | NASDAQ |
+| Google (Alphabet) | GOOGL | Acción | NASDAQ |
+| Microsoft | MSFT | Acción | NASDAQ |
+| Diamante (proxy) | NGLOY | Acción | OTC |
+| S&P 500 | ^GSPC | Índice | Estados Unidos |
+| STOXX Europe 600 | ^STOXX | Índice | Europa |
+| Nasdaq-100 | QQQ | Índice (fondo cotizado) | NASDAQ |
+| Petróleo WTI | CL=F | Futuro | NYMEX |
+| Gas natural | NG=F | Futuro | NYMEX |
+| Oro | GC=F | Futuro | COMEX |
+| Plata | SI=F | Futuro | COMEX |
+| Cobre | HG=F | Futuro | COMEX |
+| Bonos del Tesoro a más de 20 años | TLT | Renta fija (fondo cotizado) | NASDAQ |
+| Índice del dólar | DX-Y.NYB | Divisa | ICE |
+| Euro | FXE | Divisa (fondo cotizado) | NYSE Arca |
+| Bitcoin | BTC-USD | Criptoactivo | Negociación continua |
+| Ethereum | ETH-USD | Criptoactivo | Negociación continua |
+| VIX | ^VIX | Volatilidad implícita | CBOE |
+| Short S&P 500 | SH | Inverso −1x | NYSE Arca |
+| Short Nasdaq-100 | PSQ | Inverso −1x | NYSE Arca |
+| UltraShort oro | GLL | Inverso −2x | NYSE Arca |
+
+<https://finance.yahoo.com/>
+
+Sobre la construcción de esta base deben declararse las siguientes decisiones y sus implicaciones.
+
+**Ventana temporal.** El extractor descarga el histórico completo disponible, que abarca desde 1927 en el caso del S&P 500 hasta 2017 en el de ethereum. Comparar series con veinticuatro mil y con tres mil observaciones carece de sentido estadístico, por lo que todas se recortaron a una ventana común de cinco años, del 4 de septiembre de 2021 al 4 de septiembre de 2026. La fecha final queda fija en el procedimiento de exportación, de modo que volver a ejecutar el extractor no altera el periodo analizado. La ventana deja aproximadamente 1.255 observaciones diarias por activo, salvo en los criptoactivos, que suman 1.827 porque cotizan también los fines de semana.
+
+**Alineación por fecha y cálculo de rendimientos.** Como los calendarios de negociación difieren entre mercados, la consolidación de las series se hace cruzando por fecha y no por posición, y se conservan solo las jornadas en que los veintiún activos tienen precio. Los rendimientos del análisis de dependencia se calculan después de esa alineación, sobre los precios de las jornadas comunes. De esta forma el rendimiento de cada activo cubre exactamente el mismo intervalo que el de los demás: el movimiento de un fin de semana del bitcoin, o el de un día en que solo cotizaron los futuros, queda incorporado en el rendimiento de la siguiente jornada común en lugar de perderse.
+
+**Horas de cierre.** Aun con las fechas alineadas, los activos no cierran a la misma hora. El STOXX Europe 600 cierra varias horas antes que la bolsa de Nueva York y los criptoactivos cierran a medianoche en tiempo universal. Parte de lo que ocurre en la tarde estadounidense se refleja al día siguiente en el índice europeo, lo que atenúa su correlación contemporánea con los activos de Estados Unidos. La sección de correlaciones cuantifica este efecto.
+
+**Divisas.** Para el euro se descartó el tipo de cambio EUR/USD que publica Yahoo Finance, porque su serie diaria está fechada con un día de retraso respecto de los mercados estadounidenses: su correlación de Spearman con el índice del dólar resultaba prácticamente nula en la misma fecha (−0,07) y de −0,87 al desplazarla un día. En su lugar se utiliza FXE, un fondo cotizado en Nueva York que replica el euro frente al dólar y cierra a la misma hora que las acciones. Ni el índice del dólar ni el VIX registran volumen de negociación en la fuente, por lo que su columna de volumen vale cero en todas las fechas.
+
+**Precio empleado.** El rendimiento se calcula sobre el precio de cierre y no sobre el cierre ajustado. Los dividendos y los intereses distribuidos quedan fuera, de modo que las rentabilidades acumuladas corresponden a rentabilidad por precio y no a rentabilidad total. La diferencia es despreciable en los futuros, en las divisas y en los criptoactivos, pero subestima el rendimiento de los activos que reparten dividendos, como Microsoft y Anglo American, y sobre todo el del fondo de bonos del Tesoro, que distribuye cada mes los intereses de su cartera. El cierre ajustado tiene además la desventaja de que la fuente lo recalcula cada vez que se paga un nuevo dividendo.
+
+**Futuros continuos.** Los precios del petróleo, el gas natural, el oro, la plata y el cobre corresponden a series continuas que encadenan contratos sucesivos. En el cambio de un contrato al siguiente pueden aparecer saltos que no son movimientos del mercado. La fuente puede además reconstruir la serie completa: entre la primera descarga de este proyecto, el 6 de septiembre de 2026, y la actual, del 21 de septiembre, Yahoo Finance modificó la serie del oro. Sus cierres cambiaron en una mediana de 0,37 % y hasta un máximo de 1,96 %, y su volumen mediano pasó de 344 a cerca de 181.000 contratos, lo que sugiere que la serie pasó a construirse con el contrato más negociado. El informe utiliza la versión vigente.
+
+**Productos inversos y VIX.** SH y PSQ buscan el rendimiento diario opuesto del S&P 500 y del Nasdaq-100, y GLL el doble del rendimiento diario opuesto del oro. Como el objetivo se reajusta cada día, en horizontes largos su rendimiento acumulado no es el opuesto del rendimiento del activo de referencia, y se aleja de él tanto más cuanto mayor es la volatilidad del periodo. El VIX, por su parte, es un índice de volatilidad implícita que no se puede comprar directamente, de modo que su rendimiento es la variación de un indicador y no el resultado de una inversión.
+
+**Aproximación del diamante.** El diamante no cotiza como contrato de futuros en ningún mercado organizado. Su precio se establece mediante catálogos de referencia elaborados por De Beers y por el índice Rapaport, y no mediante un mecanismo continuo de oferta y demanda, por lo que no existe una serie diaria de precios comparable a la de los demás activos. Se emplea en su lugar la acción de Anglo American (NGLOY), empresa propietaria de De Beers. Debe interpretarse, en consecuencia, como una acción del sector minero sujeta al ciclo bursátil y no como el precio del diamante, y los resultados de este instrumento se leen con esa salvedad a lo largo de todo el informe.
+
+## 7. EDA inicial
+
+### Librerías
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(pander)
+library(ggplot2)
+library(dlookr)
+library(energy)
+library(ggrepel)
+```
+
+## analisis de datos
+
+Para cada uno de los veintiún activos se calcula la rentabilidad del periodo como el logaritmo del cociente entre el cierre actual y el cierre anterior:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+Sobre esta variable, y sobre las variables originales de precio y volumen, se ejecuta el diagnóstico de la base (`diagnose`), el diagnóstico de valores atípicos (`diagnose_outlier`) y los histogramas correspondientes.
+
+### Tesla (TSLA)
+
+```{r}
+tesla <- read.csv("datos_csv/TSLA.csv")
+pander::pander(head(tesla,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+tesla <- tesla |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+tesla <- tesla |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(tesla))
+```
+
+```{r}
+pander(diagnose_outlier(tesla))
+```
+
+```{r}
+hist(tesla$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(tesla$Open, main = "Open", xlab = "Open")
+hist(tesla$High, main = "High", xlab = "High")
+hist(tesla$Low, main = "Low", xlab = "Low")
+hist(tesla$Close, main = "Close", xlab = "Close")
+hist(tesla$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(tesla$Volume, main = "Volume", xlab = "Volume")
+hist(tesla$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Google - Alphabet (GOOGL)
+
+```{r}
+google <- read.csv("datos_csv/GOOGL.csv")
+pander::pander(head(google,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+google <- google |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+google <- google |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(google))
+```
+
+```{r}
+pander(diagnose_outlier(google))
+```
+
+```{r}
+hist(google$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(google$Open, main = "Open", xlab = "Open")
+hist(google$High, main = "High", xlab = "High")
+hist(google$Low, main = "Low", xlab = "Low")
+hist(google$Close, main = "Close", xlab = "Close")
+hist(google$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(google$Volume, main = "Volume", xlab = "Volume")
+hist(google$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Microsoft (MSFT)
+
+```{r}
+microsoft <- read.csv("datos_csv/MSFT.csv")
+pander::pander(head(microsoft,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+microsoft <- microsoft |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+microsoft <- microsoft |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(microsoft))
+```
+
+```{r}
+pander(diagnose_outlier(microsoft))
+```
+
+```{r}
+hist(microsoft$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(microsoft$Open, main = "Open", xlab = "Open")
+hist(microsoft$High, main = "High", xlab = "High")
+hist(microsoft$Low, main = "Low", xlab = "Low")
+hist(microsoft$Close, main = "Close", xlab = "Close")
+hist(microsoft$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(microsoft$Volume, main = "Volume", xlab = "Volume")
+hist(microsoft$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Petróleo WTI (CL=F)
+
+```{r}
+petroleo <- read.csv("datos_csv/PETROLEO.csv")
+pander::pander(head(petroleo,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+petroleo <- petroleo |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+petroleo <- petroleo |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(petroleo))
+```
+
+```{r}
+pander(diagnose_outlier(petroleo))
+```
+
+```{r}
+hist(petroleo$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(petroleo$Open, main = "Open", xlab = "Open")
+hist(petroleo$High, main = "High", xlab = "High")
+hist(petroleo$Low, main = "Low", xlab = "Low")
+hist(petroleo$Close, main = "Close", xlab = "Close")
+hist(petroleo$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(petroleo$Volume, main = "Volume", xlab = "Volume")
+hist(petroleo$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Gas natural (NG=F)
+
+```{r}
+gas <- read.csv("datos_csv/GASNATURAL.csv")
+pander::pander(head(gas,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+gas <- gas |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+gas <- gas |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(gas))
+```
+
+```{r}
+pander(diagnose_outlier(gas))
+```
+
+```{r}
+hist(gas$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(gas$Open, main = "Open", xlab = "Open")
+hist(gas$High, main = "High", xlab = "High")
+hist(gas$Low, main = "Low", xlab = "Low")
+hist(gas$Close, main = "Close", xlab = "Close")
+hist(gas$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(gas$Volume, main = "Volume", xlab = "Volume")
+hist(gas$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Oro (GC=F)
+
+```{r}
+oro <- read.csv("datos_csv/ORO.csv")
+pander::pander(head(oro,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+oro <- oro |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+oro <- oro |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(oro))
+```
+
+```{r}
+pander(diagnose_outlier(oro))
+```
+
+```{r}
+hist(oro$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(oro$Open, main = "Open", xlab = "Open")
+hist(oro$High, main = "High", xlab = "High")
+hist(oro$Low, main = "Low", xlab = "Low")
+hist(oro$Close, main = "Close", xlab = "Close")
+hist(oro$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(oro$Volume, main = "Volume", xlab = "Volume")
+hist(oro$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Diamante - proxy Anglo American (NGLOY)
+
+```{r}
+diamante <- read.csv("datos_csv/DIAMANTE.csv")
+pander::pander(head(diamante,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+diamante <- diamante |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+diamante <- diamante |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(diamante))
+```
+
+```{r}
+pander(diagnose_outlier(diamante))
+```
+
+```{r}
+hist(diamante$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(diamante$Open, main = "Open", xlab = "Open")
+hist(diamante$High, main = "High", xlab = "High")
+hist(diamante$Low, main = "Low", xlab = "Low")
+hist(diamante$Close, main = "Close", xlab = "Close")
+hist(diamante$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(diamante$Volume, main = "Volume", xlab = "Volume")
+hist(diamante$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### S&P 500 (^GSPC)
+
+```{r}
+sp500 <- read.csv("datos_csv/SP500.csv")
+pander::pander(head(sp500,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+sp500 <- sp500 |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+sp500 <- sp500 |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(sp500))
+```
+
+```{r}
+pander(diagnose_outlier(sp500))
+```
+
+```{r}
+hist(sp500$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(sp500$Open, main = "Open", xlab = "Open")
+hist(sp500$High, main = "High", xlab = "High")
+hist(sp500$Low, main = "Low", xlab = "Low")
+hist(sp500$Close, main = "Close", xlab = "Close")
+hist(sp500$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(sp500$Volume, main = "Volume", xlab = "Volume")
+hist(sp500$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### STOXX Europe 600 (^STOXX)
+
+```{r}
+stoxx <- read.csv("datos_csv/STOXX600.csv")
+pander::pander(head(stoxx,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+stoxx <- stoxx |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+stoxx <- stoxx |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(stoxx))
+```
+
+```{r}
+pander(diagnose_outlier(stoxx))
+```
+
+```{r}
+hist(stoxx$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(stoxx$Open, main = "Open", xlab = "Open")
+hist(stoxx$High, main = "High", xlab = "High")
+hist(stoxx$Low, main = "Low", xlab = "Low")
+hist(stoxx$Close, main = "Close", xlab = "Close")
+hist(stoxx$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(stoxx$Volume, main = "Volume", xlab = "Volume")
+hist(stoxx$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Nasdaq-100 (QQQ)
+
+```{r}
+qqq <- read.csv("datos_csv/QQQ.csv")
+pander::pander(head(qqq,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+qqq <- qqq |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+qqq <- qqq |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(qqq))
+```
+
+```{r}
+pander(diagnose_outlier(qqq))
+```
+
+```{r}
+hist(qqq$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(qqq$Open, main = "Open", xlab = "Open")
+hist(qqq$High, main = "High", xlab = "High")
+hist(qqq$Low, main = "Low", xlab = "Low")
+hist(qqq$Close, main = "Close", xlab = "Close")
+hist(qqq$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(qqq$Volume, main = "Volume", xlab = "Volume")
+hist(qqq$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Plata (SI=F)
+
+```{r}
+plata <- read.csv("datos_csv/PLATA.csv")
+pander::pander(head(plata,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+plata <- plata |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+plata <- plata |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(plata))
+```
+
+```{r}
+pander(diagnose_outlier(plata))
+```
+
+```{r}
+hist(plata$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(plata$Open, main = "Open", xlab = "Open")
+hist(plata$High, main = "High", xlab = "High")
+hist(plata$Low, main = "Low", xlab = "Low")
+hist(plata$Close, main = "Close", xlab = "Close")
+hist(plata$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(plata$Volume, main = "Volume", xlab = "Volume")
+hist(plata$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Cobre (HG=F)
+
+```{r}
+cobre <- read.csv("datos_csv/COBRE.csv")
+pander::pander(head(cobre,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+cobre <- cobre |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+cobre <- cobre |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(cobre))
+```
+
+```{r}
+pander(diagnose_outlier(cobre))
+```
+
+```{r}
+hist(cobre$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(cobre$Open, main = "Open", xlab = "Open")
+hist(cobre$High, main = "High", xlab = "High")
+hist(cobre$Low, main = "Low", xlab = "Low")
+hist(cobre$Close, main = "Close", xlab = "Close")
+hist(cobre$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(cobre$Volume, main = "Volume", xlab = "Volume")
+hist(cobre$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Bonos del Tesoro a más de 20 años (TLT)
+
+```{r}
+tlt <- read.csv("datos_csv/TLT.csv")
+pander::pander(head(tlt,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+tlt <- tlt |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+tlt <- tlt |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(tlt))
+```
+
+```{r}
+pander(diagnose_outlier(tlt))
+```
+
+```{r}
+hist(tlt$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(tlt$Open, main = "Open", xlab = "Open")
+hist(tlt$High, main = "High", xlab = "High")
+hist(tlt$Low, main = "Low", xlab = "Low")
+hist(tlt$Close, main = "Close", xlab = "Close")
+hist(tlt$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(tlt$Volume, main = "Volume", xlab = "Volume")
+hist(tlt$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Índice del dólar (DX-Y.NYB)
+
+```{r}
+dolar <- read.csv("datos_csv/DOLAR.csv")
+pander::pander(head(dolar,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+dolar <- dolar |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+dolar <- dolar |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(dolar))
+```
+
+```{r}
+pander(diagnose_outlier(dolar))
+```
+
+```{r}
+hist(dolar$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(dolar$Open, main = "Open", xlab = "Open")
+hist(dolar$High, main = "High", xlab = "High")
+hist(dolar$Low, main = "Low", xlab = "Low")
+hist(dolar$Close, main = "Close", xlab = "Close")
+hist(dolar$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(dolar$Volume, main = "Volume", xlab = "Volume")
+hist(dolar$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Euro (FXE)
+
+```{r}
+euro <- read.csv("datos_csv/EURO.csv")
+pander::pander(head(euro,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+euro <- euro |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+euro <- euro |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(euro))
+```
+
+```{r}
+pander(diagnose_outlier(euro))
+```
+
+```{r}
+hist(euro$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(euro$Open, main = "Open", xlab = "Open")
+hist(euro$High, main = "High", xlab = "High")
+hist(euro$Low, main = "Low", xlab = "Low")
+hist(euro$Close, main = "Close", xlab = "Close")
+hist(euro$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(euro$Volume, main = "Volume", xlab = "Volume")
+hist(euro$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Bitcoin (BTC-USD)
+
+```{r}
+btc <- read.csv("datos_csv/BTC.csv")
+pander::pander(head(btc,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+btc <- btc |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+btc <- btc |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(btc))
+```
+
+```{r}
+pander(diagnose_outlier(btc))
+```
+
+```{r}
+hist(btc$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(btc$Open, main = "Open", xlab = "Open")
+hist(btc$High, main = "High", xlab = "High")
+hist(btc$Low, main = "Low", xlab = "Low")
+hist(btc$Close, main = "Close", xlab = "Close")
+hist(btc$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(btc$Volume, main = "Volume", xlab = "Volume")
+hist(btc$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Ethereum (ETH-USD)
+
+```{r}
+eth <- read.csv("datos_csv/ETH.csv")
+pander::pander(head(eth,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+eth <- eth |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+eth <- eth |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(eth))
+```
+
+```{r}
+pander(diagnose_outlier(eth))
+```
+
+```{r}
+hist(eth$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(eth$Open, main = "Open", xlab = "Open")
+hist(eth$High, main = "High", xlab = "High")
+hist(eth$Low, main = "Low", xlab = "Low")
+hist(eth$Close, main = "Close", xlab = "Close")
+hist(eth$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(eth$Volume, main = "Volume", xlab = "Volume")
+hist(eth$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### VIX (^VIX)
+
+```{r}
+vix <- read.csv("datos_csv/VIX.csv")
+pander::pander(head(vix,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+vix <- vix |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+vix <- vix |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(vix))
+```
+
+```{r}
+pander(diagnose_outlier(vix))
+```
+
+```{r}
+hist(vix$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(vix$Open, main = "Open", xlab = "Open")
+hist(vix$High, main = "High", xlab = "High")
+hist(vix$Low, main = "Low", xlab = "Low")
+hist(vix$Close, main = "Close", xlab = "Close")
+hist(vix$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(vix$Volume, main = "Volume", xlab = "Volume")
+hist(vix$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Short S&P 500 (SH)
+
+```{r}
+sh <- read.csv("datos_csv/SH.csv")
+pander::pander(head(sh,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+sh <- sh |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+sh <- sh |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(sh))
+```
+
+```{r}
+pander(diagnose_outlier(sh))
+```
+
+```{r}
+hist(sh$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(sh$Open, main = "Open", xlab = "Open")
+hist(sh$High, main = "High", xlab = "High")
+hist(sh$Low, main = "Low", xlab = "Low")
+hist(sh$Close, main = "Close", xlab = "Close")
+hist(sh$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(sh$Volume, main = "Volume", xlab = "Volume")
+hist(sh$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### Short Nasdaq-100 (PSQ)
+
+```{r}
+psq <- read.csv("datos_csv/PSQ.csv")
+pander::pander(head(psq,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+psq <- psq |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+psq <- psq |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(psq))
+```
+
+```{r}
+pander(diagnose_outlier(psq))
+```
+
+```{r}
+hist(psq$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(psq$Open, main = "Open", xlab = "Open")
+hist(psq$High, main = "High", xlab = "High")
+hist(psq$Low, main = "Low", xlab = "Low")
+hist(psq$Close, main = "Close", xlab = "Close")
+hist(psq$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(psq$Volume, main = "Volume", xlab = "Volume")
+hist(psq$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+### UltraShort oro (GLL)
+
+```{r}
+gll <- read.csv("datos_csv/GLL.csv")
+pander::pander(head(gll,10))
+```
+
+creamos la rentabilidad del periodo calculada como:
+
+$$rentabilidad = Ln\left(\frac{C_t}{C_{t-1}}\right)$$
+
+```{r}
+gll <- gll |>
+  mutate(
+    rentabilidad = log(Close / lag(Close))
+  )
+gll <- gll |>
+  mutate(
+    rent_porcent = round(rentabilidad*100,4)
+  )
+```
+
+posteriormente de este analisis vamos a realizar el analisis exploratorio de la base.
+
+```{r}
+pander(diagnose(gll))
+```
+
+```{r}
+pander(diagnose_outlier(gll))
+```
+
+```{r}
+hist(gll$Open,
+     main = "Histograma de Open",
+     xlab = "Open",
+     col = "lightblue",
+     border = "black")
+```
+
+```{r fig.width=12, fig.height=6}
+par(mfrow = c(2, 4))
+
+hist(gll$Open, main = "Open", xlab = "Open")
+hist(gll$High, main = "High", xlab = "High")
+hist(gll$Low, main = "Low", xlab = "Low")
+hist(gll$Close, main = "Close", xlab = "Close")
+hist(gll$Adj.Close, main = "Adj.Close", xlab = "Adj.Close")
+hist(gll$Volume, main = "Volume", xlab = "Volume")
+hist(gll$rentabilidad, main = "Rentabilidad", xlab = "Rentabilidad")
+
+par(mfrow = c(1, 1))
+```
+
+## 8. Correlación entre los activos
+
+Terminado el diagnóstico individual, se consolidan las rentabilidades logarítmicas de los veintiún activos para estudiar cómo se mueven unos respecto de otros.
+
+Conforme a lo declarado en el apartado 6, las series se cruzan por fecha, se conservan las jornadas en que los veintiún activos tienen precio y los rendimientos se calculan sobre esos precios alineados. El número de rendimientos que resulta es el tamaño efectivo de la muestra sobre la que se calculan todos los coeficientes de este apartado y del siguiente. El vector `clases` agrupa los activos en los ocho estratos del diseño y se utiliza en los gráficos.
+
+```{r}
+activos <- list(
+  "Tesla"                = tesla,
+  "Google"               = google,
+  "Microsoft"            = microsoft,
+  "Petroleo WTI"         = petroleo,
+  "Gas natural"          = gas,
+  "Oro"                  = oro,
+  "Diamante (proxy)"     = diamante,
+  "S&P 500"              = sp500,
+  "STOXX Europe 600"     = stoxx,
+  "Nasdaq 100 (QQQ)"     = qqq,
+  "Plata"                = plata,
+  "Cobre"                = cobre,
+  "Bonos Tesoro 20+"     = tlt,
+  "Indice dolar"         = dolar,
+  "Euro (FXE)"           = euro,
+  "Bitcoin"              = btc,
+  "Ethereum"             = eth,
+  "VIX"                  = vix,
+  "Short S&P 500 (SH)"   = sh,
+  "Short Nasdaq (PSQ)"   = psq,
+  "UltraShort Oro (GLL)" = gll
+)
+
+clases <- c(
+  "Tesla"                = "Acciones",
+  "Google"               = "Acciones",
+  "Microsoft"            = "Acciones",
+  "Diamante (proxy)"     = "Acciones",
+  "S&P 500"              = "Indices",
+  "STOXX Europe 600"     = "Indices",
+  "Nasdaq 100 (QQQ)"     = "Indices",
+  "Petroleo WTI"         = "Materias primas",
+  "Gas natural"          = "Materias primas",
+  "Oro"                  = "Materias primas",
+  "Plata"                = "Materias primas",
+  "Cobre"                = "Materias primas",
+  "Bonos Tesoro 20+"     = "Renta fija",
+  "Indice dolar"         = "Divisas",
+  "Euro (FXE)"           = "Divisas",
+  "Bitcoin"              = "Criptoactivos",
+  "Ethereum"             = "Criptoactivos",
+  "VIX"                  = "Volatilidad",
+  "Short S&P 500 (SH)"   = "Inversos",
+  "Short Nasdaq (PSQ)"   = "Inversos",
+  "UltraShort Oro (GLL)" = "Inversos"
+)
+
+precios <- map_dfr(names(activos), function(nombre) {
+  data.frame(
+    Date   = as.Date(activos[[nombre]]$Date),
+    Activo = nombre,
+    Close  = activos[[nombre]]$Close
+  )
+}) |>
+  pivot_wider(names_from = Activo, values_from = Close) |>
+  arrange(Date)
+
+comunes <- precios[complete.cases(precios[ , names(activos)]), ]
+
+X      <- apply(as.matrix(comunes[ , names(activos)]), 2, function(p) diff(log(p)))
+fechas <- comunes$Date[-1]
+
+pander(data.frame(
+  Fechas_totales  = nrow(precios),
+  Precios_comunes = nrow(comunes),
+  Rendimientos    = nrow(X),
+  Desde           = format(min(fechas)),
+  Hasta           = format(max(fechas))
+))
+```
+
+### Cierres asíncronos
+
+Antes de calcular las correlaciones conviene medir el efecto de las distintas horas de cierre. La tabla compara la correlación de tres activos con el rendimiento del S&P 500 del mismo día y con el del día anterior.
+
+```{r}
+retardo <- map_dfr(c("STOXX Europe 600", "Bitcoin", "Ethereum"), function(nombre) {
+  hoy <- X[-1, nombre]
+  data.frame(
+    Activo             = nombre,
+    SP500_mismo_dia    = round(cor(hoy, X[-1, "S&P 500"], method = "spearman"), 3),
+    SP500_dia_anterior = round(cor(hoy, X[-nrow(X), "S&P 500"], method = "spearman"), 3)
+  )
+})
+
+pander(retardo)
+```
+
+El STOXX Europe 600 conserva una correlación de 0,189 con el S&P 500 del día anterior: parte de lo que ocurre en la tarde estadounidense se incorpora al índice europeo en la sesión siguiente, por lo que sus coeficientes contemporáneos subestiman el vínculo real entre ambos mercados. En los criptoactivos la correlación con el día anterior es prácticamente nula (−0,092 en bitcoin y −0,053 en ethereum), porque cierran después que la bolsa estadounidense y ya incorporan lo ocurrido en ella.
+
+### Correlación de Spearman
+
+Se utiliza el coeficiente de Spearman porque trabaja sobre rangos y no sobre los valores originales, lo que lo hace robusto frente a los valores extremos que el `diagnose_outlier` detectó en todos los activos.
+
+```{r}
+spearman <- cor(X, method = "spearman")
+pander(round(spearman, 3))
+```
+
+```{r fig.width=13, fig.height=11}
+mapa_calor <- function(m, titulo) {
+  largo <- as.data.frame(as.table(m))
+  colnames(largo) <- c("Activo1", "Activo2", "Valor")
+
+  ggplot(largo, aes(Activo1, Activo2, fill = Valor)) +
+    geom_tile(color = "white") +
+    geom_text(aes(label = sprintf("%.2f", Valor)), size = 2.3) +
+    scale_fill_gradient2(low = "#b2182b", mid = "white", high = "#2166ac",
+                         midpoint = 0, limits = c(-1, 1)) +
+    labs(title = titulo, x = NULL, y = NULL) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+mapa_calor(spearman, "Correlacion de Spearman entre rentabilidades diarias")
+```
+
+### Pares con correlación negativa
+
+Con veintiún activos la matriz contiene 210 pares distintos. La tabla ordena los doce con la correlación más negativa.
+
+```{r}
+pares <- which(upper.tri(spearman), arr.ind = TRUE)
+
+todos_los_pares <- data.frame(
+  Activo_1 = colnames(spearman)[pares[ , 1]],
+  Activo_2 = colnames(spearman)[pares[ , 2]],
+  Spearman = round(spearman[pares], 3)
+)
+
+todos_los_pares |>
+  arrange(Spearman) |>
+  head(12) |>
+  pander()
+```
+
+### Correlación de distancias
+
+El coeficiente de Spearman solo detecta relaciones monótonas: si dos activos se mueven juntos en magnitud pero sin una dirección consistente, Spearman devuelve un valor cercano a cero. La correlación de distancias resuelve esa limitación, ya que vale cero **si y solo si** las dos variables son independientes, e identifica también dependencias no lineales. Su rango va de 0 a 1 y no toma valores negativos, de modo que una relación inversa perfecta aparece en ella con un valor cercano a 1.
+
+```{r}
+k  <- ncol(X)
+dc <- matrix(1, k, k, dimnames = list(colnames(X), colnames(X)))
+
+for (i in 1:(k - 1)) {
+  for (j in (i + 1):k) {
+    valor    <- dcor(X[ , i], X[ , j])
+    dc[i, j] <- valor
+    dc[j, i] <- valor
+  }
+}
+
+pander(round(dc, 3))
+```
+
+```{r fig.width=13, fig.height=11}
+mapa_calor(dc, "Correlacion de distancias entre rentabilidades diarias")
+```
+
+### Spearman frente a correlación de distancias
+
+Comparar ambos coeficientes permite detectar pares de activos con dependencia no monótona: si la correlación de distancias es claramente mayor que el valor absoluto de Spearman, existe una relación que el coeficiente de rangos no captura.
+
+```{r}
+comparacion <- data.frame(
+  Activo_1  = colnames(spearman)[pares[ , 1]],
+  Activo_2  = colnames(spearman)[pares[ , 2]],
+  Spearman  = round(spearman[pares], 3),
+  Distancia = round(dc[pares], 3)
+) |>
+  mutate(Diferencia = round(Distancia - abs(Spearman), 3)) |>
+  arrange(desc(Diferencia))
+
+pander(head(comparacion, 12))
+```
+
+```{r fig.width=9, fig.height=7}
+ggplot(comparacion, aes(x = abs(Spearman), y = Distancia, color = Spearman < 0)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey40") +
+  geom_point(size = 2.2, alpha = 0.8) +
+  scale_color_manual(values = c("FALSE" = "steelblue", "TRUE" = "#b2182b"),
+                     labels = c("Positiva", "Negativa"),
+                     name   = "Signo de Spearman") +
+  labs(
+    title    = "Spearman frente a correlacion de distancias",
+    subtitle = "Los puntos sobre la diagonal indican dependencia no captada por los rangos",
+    x        = "Valor absoluto de Spearman",
+    y        = "Correlacion de distancias"
+  ) +
+  theme_minimal()
+```
+
+### Sesgo de la correlación de distancias
+
+El estimador muestral de la correlación de distancias no vale cero cuando dos variables son independientes: tiene un sesgo positivo que depende del tamaño de la muestra y de la forma de las distribuciones. Para saber a partir de qué valor el coeficiente refleja dependencia real se construye una línea base: se permuta al azar el orden de una de las series, lo que rompe cualquier relación con la otra, y se recalcula el coeficiente cien veces. La línea base se construye sobre el par petróleo y S&P 500, por lo que funciona como una aproximación para el resto de los pares.
+
+```{r}
+set.seed(123)
+linea_base <- replicate(100, dcor(X[ , "Petroleo WTI"], sample(X[ , "S&P 500"])))
+umbral     <- unname(quantile(linea_base, 0.95))
+
+pander(data.frame(
+  Media_bajo_independencia = round(mean(linea_base), 3),
+  Percentil_95             = round(umbral, 3)
+))
+
+comparacion |>
+  head(12) |>
+  mutate(Supera_linea_base = ifelse(Distancia > umbral, "Si", "No")) |>
+  pander()
+```
+
+### Análisis de las correlaciones
+
+Con veintiún activos la matriz de Spearman se organiza en bloques nítidos. El más compacto es el de la renta variable estadounidense: el S&P 500 y el Nasdaq-100 forman el par positivo más alto de toda la matriz (0,938), y las tres tecnológicas correlacionan entre 0,639 y 0,738 con el Nasdaq-100. Los criptoactivos forman un bloque propio, con 0,837 entre bitcoin y ethereum, y lo mismo ocurre con los metales preciosos, con 0,753 entre el oro y la plata.
+
+Las materias primas se dividen en dos grupos. Los energéticos siguen siendo prácticamente independientes de la renta variable: el petróleo y el gas natural no superan 0,057 en valor absoluto frente a ninguna acción ni índice. Los metales, en cambio, muestran una relación débil pero apreciable, que alcanza 0,272 entre el cobre y el S&P 500 y 0,345 entre el cobre y el STOXX Europe 600, coherente con su vínculo con la actividad industrial. Los bonos del Tesoro a largo plazo apenas se relacionan con el S&P 500 (0,093), lo que indica que en este periodo no cumplieron su función tradicional de refugio frente a las caídas de las acciones.
+
+Seis pares tienen una correlación inferior a −0,9, y los productos inversos explican cinco de ellos. SH frente al S&P 500 (−0,986) y PSQ frente al Nasdaq-100 (−0,991) replican casi exactamente su diseño, y los cruces entre ellos también quedan por debajo de −0,9 porque ambos índices se mueven casi juntos. GLL frente al oro alcanza −0,903, una cifra algo menos extrema, que puede deberse a que el fondo y el futuro continuo no siguen exactamente el mismo contrato ni cierran a la misma hora. El único par natural por debajo de −0,9 es el del índice del dólar frente al euro (−0,939), y tiene una explicación estructural: el euro representa cerca del 58 % de la canasta con la que se calcula el índice, de modo que este se comporta en buena medida como el reflejo del tipo de cambio entre ambas monedas.
+
+Fuera de los productos construidos para ello, la relación negativa más fuerte con el mercado es la del VIX: −0,759 frente al S&P 500 y entre −0,419 y −0,698 frente a las demás acciones e índices. Cuando las acciones caen, la volatilidad que el mercado espera para las semanas siguientes aumenta. El índice del dólar muestra una relación negativa más moderada con casi todos los activos de riesgo: −0,274 con el S&P 500, −0,415 con el oro y −0,361 con el cobre, lo que refleja que las materias primas cotizan en dólares y que el dólar tiende a fortalecerse en los episodios de aversión al riesgo.
+
+La comparación con la correlación de distancias confirma que la dependencia fuerte es monótona. En los pares extremos, positivos o negativos, ambos coeficientes coinciden casi por completo: el S&P 500 frente a SH marca 0,986 en los dos, en valor absoluto. Donde Spearman es prácticamente nulo, la correlación de distancias solo es informativa si supera la línea base de independencia, cuya media es 0,054 y cuyo percentil 95 es 0,074. Entre los doce pares con mayor diferencia, los seis que superan la línea base tienen al petróleo en común: frente al S&P 500, el Nasdaq-100, el STOXX Europe 600, el VIX, SH y PSQ, con valores entre 0,077 y 0,090. Como esos seis instrumentos se mueven casi como uno solo, no son seis confirmaciones independientes sino la misma señal vista desde seis ángulos: una dependencia débil y no monótona entre el petróleo y la renta variable, compatible con que ambos registren movimientos grandes en las mismas jornadas sin que la dirección coincida. El margen sobre la línea base es estrecho y la línea base no incorpora la dependencia temporal de las series, por lo que el resultado debe tomarse como una señal a verificar y no como una conclusión.
+
+## 9. Rendimientos frente al S&P 500
+
+En este apartado se toma el S&P 500 como referencia de mercado y se evalúa el comportamiento de los otros veinte activos frente a él. Para cada activo se estima la regresión `r_activo = alfa + beta * r_sp500 + error` sobre las rentabilidades diarias, y se reportan también la rentabilidad acumulada y la volatilidad anualizada del periodo.
+
+El coeficiente beta mide la sensibilidad del activo a los movimientos del índice: un beta de 2 implica que, en promedio, el activo amplifica al doble los movimientos del mercado, y un beta negativo indica que se mueve en sentido contrario. El coeficiente de determinación indica qué proporción de la variabilidad del activo queda explicada por el índice. El intercepto anualizado recoge el rendimiento medio no atribuible al mercado; conviene advertir que se calcula sin descontar una tasa libre de riesgo, por lo que es una medida descriptiva y no un alfa de Jensen.
+
+```{r}
+benchmark <- X[ , "S&P 500"]
+otros     <- setdiff(colnames(X), "S&P 500")
+
+frente_sp <- map_dfr(otros, function(nombre) {
+  r      <- X[ , nombre]
+  modelo <- lm(r ~ benchmark)
+  data.frame(
+    Activo           = nombre,
+    Spearman         = round(cor(r, benchmark, method = "spearman"), 3),
+    Distancia        = round(dc[nombre, "S&P 500"], 3),
+    Beta             = round(unname(coef(modelo)[2]), 3),
+    R2               = round(summary(modelo)$r.squared, 3),
+    Intercepto_anual = round(unname(coef(modelo)[1]) * 252 * 100, 2),
+    Rend_acum        = round((exp(sum(r)) - 1) * 100, 1),
+    Vol_anual        = round(sd(r) * sqrt(252) * 100, 1),
+    row.names        = NULL
+  )
+}) |>
+  arrange(desc(Rend_acum))
+
+pander(frente_sp)
+```
+
+La referencia contra la que se comparan estas cifras es el propio índice:
+
+```{r}
+pander(data.frame(
+  Activo    = "S&P 500",
+  Rend_acum = round((exp(sum(benchmark)) - 1) * 100, 1),
+  Vol_anual = round(sd(benchmark) * sqrt(252) * 100, 1),
+  row.names = NULL
+))
+```
+
+### Evolución acumulada
+
+Con veintiún series un único gráfico resulta ilegible, por lo que la evolución se presenta por clase de activo. En todos los paneles la línea gris punteada es el S&P 500, para facilitar la comparación. Cada panel tiene su propia escala vertical.
+
+```{r fig.width=13, fig.height=9}
+acumulado <- map_dfr(colnames(X), function(nombre) {
+  data.frame(
+    Date   = fechas,
+    Activo = nombre,
+    Clase  = unname(clases[nombre]),
+    indice = 100 * exp(cumsum(X[ , nombre]))
+  )
+})
+
+referencia <- acumulado |>
+  filter(Activo == "S&P 500") |>
+  select(Date, indice)
+
+ggplot(acumulado, aes(x = Date, y = indice, color = Activo)) +
+  geom_line(data = referencia, aes(x = Date, y = indice), inherit.aes = FALSE,
+            color = "grey55", linetype = "dashed", linewidth = 0.5) +
+  geom_line(linewidth = 0.6) +
+  geom_hline(yintercept = 100, color = "grey80") +
+  facet_wrap(~ Clase, ncol = 4, scales = "free_y") +
+  labs(
+    title    = "Evolucion de una inversion de 100 unidades por clase de activo",
+    subtitle = "La linea gris punteada es el S&P 500 en todos los paneles",
+    x        = NULL,
+    y        = "Indice (base 100)",
+    color    = NULL
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+### Relación diaria con el índice
+
+```{r fig.width=13, fig.height=12}
+dispersion <- map_dfr(otros, function(nombre) {
+  data.frame(
+    Activo  = nombre,
+    activo  = X[ , nombre] * 100,
+    mercado = benchmark * 100
+  )
+})
+
+ggplot(dispersion, aes(x = mercado, y = activo)) +
+  geom_point(alpha = 0.25, size = 0.7, color = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 0.7) +
+  facet_wrap(~ Activo, scales = "free_y", ncol = 5) +
+  labs(
+    title = "Rentabilidad diaria de cada activo frente al S&P 500",
+    x     = "Rentabilidad diaria del S&P 500 (%)",
+    y     = "Rentabilidad diaria del activo (%)"
+  ) +
+  theme_minimal()
+```
+
+### Riesgo frente a rentabilidad
+
+```{r fig.width=12, fig.height=8}
+riesgo <- frente_sp |>
+  select(Activo, Rend_acum, Vol_anual) |>
+  bind_rows(data.frame(
+    Activo    = "S&P 500",
+    Rend_acum = round((exp(sum(benchmark)) - 1) * 100, 1),
+    Vol_anual = round(sd(benchmark) * sqrt(252) * 100, 1)
+  )) |>
+  mutate(Clase = unname(clases[Activo]))
+
+ggplot(riesgo, aes(x = Vol_anual, y = Rend_acum, color = Clase, label = Activo)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey60") +
+  geom_point(size = 3) +
+  geom_text_repel(size = 3.2, show.legend = FALSE, max.overlaps = Inf) +
+  labs(
+    title    = "Riesgo frente a rentabilidad",
+    subtitle = "Ventana comun 2021-2026",
+    x        = "Volatilidad anualizada (%)",
+    y        = "Rentabilidad acumulada del periodo (%)",
+    color    = "Clase"
+  ) +
+  theme_minimal()
+```
+
+### Estabilidad de la relación en el tiempo
+
+Los coeficientes anteriores resumen los cinco años en un único número. Para comprobar si esa relación se mantiene estable se calcula la correlación de Spearman móvil con el S&P 500 sobre ventanas de sesenta días de negociación.
+
+```{r fig.width=13, fig.height=12}
+ventana <- 60
+
+movil <- map_dfr(otros, function(nombre) {
+  valores <- rep(NA_real_, nrow(X))
+  for (i in ventana:nrow(X)) {
+    tramo      <- (i - ventana + 1):i
+    valores[i] <- cor(X[tramo, nombre], X[tramo, "S&P 500"], method = "spearman")
+  }
+  data.frame(Date = fechas, Activo = nombre, correlacion = valores)
+})
+
+ggplot(movil, aes(x = Date, y = correlacion)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey60") +
+  geom_line(color = "steelblue", linewidth = 0.5) +
+  facet_wrap(~ Activo, ncol = 5) +
+  labs(
+    title    = "Correlacion movil de Spearman con el S&P 500",
+    subtitle = "Ventanas de 60 dias de negociacion",
+    x        = NULL,
+    y        = "Correlacion de Spearman"
+  ) +
+  theme_minimal()
+```
+
+### Cobertura frente a diversificación
+
+Los pares con correlación fuertemente negativa invitan a pensar que combinarlos produce una cartera sin riesgo. La tabla evalúa esa idea con carteras de dos activos que se reequilibran cada día a pesos fijos. Las cinco primeras combinan un activo con su espejo; la última combina dos activos con correlación cercana a cero, como referencia. `Peso_1` es la proporción invertida en el primer activo.
+
+```{r}
+combinaciones <- list(
+  list("S&P 500",          "Short S&P 500 (SH)",   1/2),
+  list("Nasdaq 100 (QQQ)", "Short Nasdaq (PSQ)",   1/2),
+  list("Oro",              "UltraShort Oro (GLL)", 1/2),
+  list("Oro",              "UltraShort Oro (GLL)", 2/3),
+  list("Indice dolar",     "Euro (FXE)",           1/2),
+  list("S&P 500",          "Oro",                  1/2)
+)
+
+carteras <- map_dfr(combinaciones, function(p) {
+  r1      <- exp(X[ , p[[1]]]) - 1
+  r2      <- exp(X[ , p[[2]]]) - 1
+  w       <- p[[3]]
+  cartera <- w * r1 + (1 - w) * r2
+  data.frame(
+    Activo_1     = p[[1]],
+    Activo_2     = p[[2]],
+    Peso_1       = round(w, 2),
+    Spearman     = round(cor(X[ , p[[1]]], X[ , p[[2]]], method = "spearman"), 3),
+    Rend_1       = round((prod(1 + r1) - 1) * 100, 1),
+    Rend_2       = round((prod(1 + r2) - 1) * 100, 1),
+    Rend_cartera = round((prod(1 + cartera) - 1) * 100, 1),
+    Vol_1        = round(sd(r1) * sqrt(252) * 100, 1),
+    Vol_2        = round(sd(r2) * sqrt(252) * 100, 1),
+    Vol_cartera  = round(sd(cartera) * sqrt(252) * 100, 1)
+  )
+})
+
+pander(carteras)
+```
+
+### Análisis del desempeño frente al índice
+
+Durante la ventana analizada el S&P 500 acumuló un 70,8 % con una volatilidad anualizada del 17,2 %. Solo cuatro de los veinte activos restantes lo superaron.
+
+**Activos que superaron al índice.** La plata acumuló un 171,4 % y el oro un 148,9 %. El oro lo hizo con una volatilidad del 19,2 %, muy cercana a la del índice, con un beta de 0,112 y un coeficiente de determinación de 0,010: su rendimiento no proviene del mercado de acciones. La plata duplicó esa volatilidad (40,3 %) y es el activo de mejor rendimiento de la muestra. Google acumuló un 134,6 % y el Nasdaq-100 un 88,2 %, en ambos casos amplificando al mercado, con betas de 1,269 y 1,286. El Nasdaq-100 es además el activo mejor explicado por el índice, con un coeficiente de determinación de 0,905.
+
+**Rendimiento parecido con más riesgo.** Bitcoin acumuló un 70,2 %, prácticamente lo mismo que el índice, pero con una volatilidad del 53,2 %, tres veces mayor. Microsoft acumuló un 66,5 % con un beta de 1,155 y un coeficiente de determinación de 0,484.
+
+**Por debajo del índice.** El cobre (54,2 %), Tesla (41,1 %), el STOXX Europe 600 (37,4 %), Anglo American (35,8 %) y el petróleo (33,8 %) quedaron por debajo del S&P 500. Tesla es el caso más marcado: tiene el beta positivo más alto de la muestra (2,057), una volatilidad del 60,5 % y un intercepto anualizado de −15,61 %, es decir, obtuvo menos de lo que correspondería a su exposición al mercado.
+
+**Divisas.** El índice del dólar (7,2 %) y el euro (−3,0 %) apenas se movieron en términos acumulados, con volatilidades inferiores al 8 %. Fuera del VIX y de los productos inversos, el dólar es el único activo cuya correlación con el S&P 500 es negativa de forma estable: su beta es de −0,106 y su correlación móvil es negativa en el 91 % de las ventanas.
+
+**Pérdidas.** Además del euro, siete activos terminaron con pérdida. Ethereum perdió un 28,3 % con una volatilidad del 70,9 % y un beta de 1,793, muy superior al de bitcoin (1,279). El gas natural perdió un 34,9 % con una volatilidad del 86,1 %. Los bonos del Tesoro a largo plazo perdieron un 44,0 % de su precio, afectados por la subida de tasas de interés iniciada en 2022, con un beta de apenas 0,073: no compensaron las caídas de las acciones. El VIX perdió un 19,9 % en su nivel, con la volatilidad más alta de la muestra (121,7 %), aunque conviene recordar que no es un activo invertible. Los tres productos inversos también perdieron valor: SH un 44,4 %, PSQ un 55,0 % y GLL un 83,7 %. Las dos primeras pérdidas son la contracara de un mercado alcista; la de GLL es la más severa porque combina el apalancamiento doble con un activo de referencia que más que duplicó su precio.
+
+**Cobertura frente a diversificación.** La tabla de carteras resume la lección central del apartado. Combinar el S&P 500 con SH a partes iguales reduce la volatilidad del 17,2 % al 1,1 %, pero también el rendimiento, del 70,8 % al 4,7 % en cinco años: la cartera se comporta prácticamente como efectivo. Lo mismo ocurre con el Nasdaq-100 y PSQ (5,0 % con 1,3 % de volatilidad) y con el dólar y el euro (3,3 % con 1,4 %). Un activo con correlación cercana a −1 no diversifica, cubre: elimina el riesgo junto con el rendimiento. El caso del oro con GLL añade una advertencia práctica. Como GLL es un producto −2x, repartir a partes iguales deja una exposición neta corta al oro y produce una pérdida del 23,0 %; la proporción que neutraliza la exposición es de dos tercios en oro y un tercio en GLL, que da un 18,7 % con 5,3 % de volatilidad. En contraste, combinar el S&P 500 con el oro, cuya correlación es de apenas 0,098, reduce la volatilidad a un 13,5 %, por debajo de la de cualquiera de los dos por separado, y conserva un rendimiento del 113,8 %. Esa es la diferencia entre cubrir y diversificar.
+
+**Estabilidad.** La correlación móvil confirma que solo las relaciones construidas son estables. SH se mantiene entre −1,00 y −0,94 durante todo el periodo, PSQ entre −0,97 y −0,81 y el Nasdaq-100 entre 0,83 y 0,97. El VIX es negativo en todas las ventanas, entre −0,93 y −0,45. El resto de las relaciones cambia de forma apreciable: Microsoft oscila entre 0,94 y 0,15, los bonos del Tesoro entre −0,38 y 0,61, y el petróleo es negativo en el 49 % de las ventanas. Para una estrategia de corto plazo esto implica que una cobertura basada en correlaciones naturales, a diferencia de una basada en productos inversos, puede dejar de funcionar justo cuando más se necesita.
+
+## 10. Simulación de Monte Carlo de carteras
+
+Los apartados anteriores describen lo que ocurrió. Una simulación de Monte Carlo sirve para algo distinto: explorar qué conjunto de resultados es compatible con ese comportamiento. La idea es generar miles de escenarios artificiales a partir de los datos observados y estudiar la distribución de los resultados en lugar de un único camino.
+
+En este apartado se aplica en dos niveles. Primero se simulan carteras, sorteando al azar miles de combinaciones de pesos entre los activos disponibles, para ver qué relaciones entre riesgo y rendimiento eran alcanzables. Después se simulan trayectorias futuras de unas carteras concretas, con tres motores de generación distintos, para comparar qué ocurre cuando se supone normalidad y cuando no se supone nada sobre la distribución.
+
+Antes de simular conviene fijar tres decisiones. El universo se limita a los veinte activos invertibles, excluyendo el VIX, que es un indicador y no un instrumento que se pueda comprar. Los cálculos se hacen sobre rendimientos simples diarios, porque los pesos de una cartera se aplican a ellos y no a los logarítmicos. Y todas las carteras se reequilibran cada día a sus pesos objetivo, que es el supuesto más simple y el que no requiere decidir una regla de reequilibrio.
+
+### 10.1 Universo y carteras de referencia
+
+Se definen siete carteras de referencia. Las cuatro primeras son decisiones de inversión plausibles; la quinta es la cobertura estudiada en el apartado anterior; las dos últimas salen de la propia simulación y se explican más adelante.
+
+```{r}
+invertibles <- setdiff(colnames(X), "VIX")
+R           <- exp(X[ , invertibles]) - 1
+ndias       <- nrow(R)
+
+metricas <- function(rp) {
+  c(Rend = (prod(1 + rp)^(252 / length(rp)) - 1) * 100,
+    Vol  = sd(rp) * sqrt(252) * 100)
+}
+
+peso <- function(...) {
+  v <- c(...)
+  w <- setNames(rep(0, ncol(R)), colnames(R))
+  w[names(v)] <- v
+  w / sum(w)
+}
+```
+
+```{r}
+set.seed(2026)
+
+S <- 5000
+W <- matrix(rexp(S * ncol(R)), nrow = ncol(R))
+W <- t(t(W) / colSums(W))
+rownames(W) <- colnames(R)
+
+RP <- R %*% W
+
+nube <- data.frame(
+  Rend = (apply(1 + RP, 2, prod)^(252 / ndias) - 1) * 100,
+  Vol  = apply(RP, 2, sd) * sqrt(252) * 100
+) |>
+  mutate(Ratio = Rend / Vol)
+
+imin <- which.min(nube$Vol)
+imax <- which.max(nube$Ratio)
+
+carteras <- list(
+  "Solo S&P 500"    = peso("S&P 500" = 1),
+  "Pesos iguales"   = setNames(rep(1 / ncol(R), ncol(R)), colnames(R)),
+  "60/40"           = peso("S&P 500" = 0.6, "Bonos Tesoro 20+" = 0.4),
+  "Diversificada"   = peso("S&P 500" = 0.35, "Nasdaq 100 (QQQ)" = 0.10, "STOXX Europe 600" = 0.10,
+                           "Oro" = 0.20, "Cobre" = 0.05, "Bonos Tesoro 20+" = 0.10,
+                           "Bitcoin" = 0.05, "Petroleo WTI" = 0.05),
+  "Cubierta 50/50"  = peso("S&P 500" = 0.5, "Short S&P 500 (SH)" = 0.5),
+  "Minima varianza" = W[ , imin],
+  "Mejor relacion"  = W[ , imax]
+)
+
+historico <- map_dfr(names(carteras), function(nombre) {
+  rp <- as.vector(R %*% carteras[[nombre]])
+  m  <- metricas(rp)
+  data.frame(
+    Cartera     = nombre,
+    Rend_anual  = round(m[1], 2),
+    Vol_anual   = round(m[2], 2),
+    Acumulado   = round((prod(1 + rp) - 1) * 100, 1),
+    Ratio       = round(m[1] / m[2], 3),
+    row.names   = NULL
+  )
+})
+
+pander(historico)
+```
+
+La columna `Ratio` es el rendimiento anual dividido por la volatilidad anual. No es un coeficiente de Sharpe, porque no descuenta la tasa libre de riesgo, pero ordena las carteras por rendimiento obtenido por unidad de riesgo asumido.
+
+### 10.2 Cinco mil carteras aleatorias
+
+La primera simulación sortea 5.000 vectores de pesos. Cada vector se obtiene generando veinte valores de una distribución exponencial y dividiéndolos por su suma, lo que produce puntos repartidos de manera uniforme sobre el conjunto de carteras posibles sin posiciones cortas. Para cada una se calculan el rendimiento anualizado y la volatilidad que habría tenido en el periodo analizado.
+
+```{r}
+pander(data.frame(
+  Carteras        = S,
+  Rend_minimo     = round(min(nube$Rend), 1),
+  Rend_maximo     = round(max(nube$Rend), 1),
+  Vol_minima      = round(min(nube$Vol), 1),
+  Vol_maxima      = round(max(nube$Vol), 1),
+  Mejor_ratio     = round(max(nube$Ratio), 3)
+))
+```
+
+```{r fig.width=11, fig.height=7}
+referencias <- historico |>
+  mutate(Cartera = factor(Cartera, levels = names(carteras)))
+
+ggplot(nube, aes(x = Vol, y = Rend)) +
+  geom_point(aes(color = Ratio), size = 0.6, alpha = 0.45) +
+  scale_color_gradient(low = "#b2182b", high = "#2166ac") +
+  geom_point(data = referencias, aes(x = Vol_anual, y = Rend_anual),
+             inherit.aes = FALSE, size = 3, color = "black") +
+  geom_text_repel(data = referencias, aes(x = Vol_anual, y = Rend_anual, label = Cartera),
+                  inherit.aes = FALSE, size = 3.2, max.overlaps = Inf) +
+  labs(
+    title    = "Cinco mil carteras aleatorias",
+    subtitle = "Cada punto es una combinacion de pesos sobre los veinte activos invertibles",
+    x        = "Volatilidad anualizada (%)",
+    y        = "Rendimiento anualizado (%)",
+    color    = "Ratio"
+  ) +
+  theme_minimal()
+```
+
+Las dos carteras que la simulación selecciona merecen mirarse por dentro. La tabla muestra los cinco activos con mayor peso en cada una.
+
+```{r}
+mayores <- function(w, etiqueta) {
+  orden <- sort(w, decreasing = TRUE)[1:5]
+  data.frame(
+    Cartera = etiqueta,
+    Activo  = names(orden),
+    Peso    = round(as.numeric(orden) * 100, 1)
+  )
+}
+
+pander(bind_rows(
+  mayores(carteras[["Minima varianza"]], "Minima varianza"),
+  mayores(carteras[["Mejor relacion"]],  "Mejor relacion")
+))
+```
+
+### 10.3 Trayectorias simuladas a un año
+
+La segunda simulación genera el futuro de cada cartera. Se producen 1.000 trayectorias de 252 jornadas con tres motores distintos:
+
+- **Normal.** Cada rendimiento diario se sortea de una distribución normal con la media y la desviación estándar históricas de la cartera. Es el supuesto paramétrico clásico.
+
+- **Bootstrap.** Cada rendimiento diario se extrae al azar, con reemplazo, del conjunto de rendimientos diarios realmente observados. No impone ninguna forma a la distribución, de modo que conserva las colas y la asimetría de los datos, pero rompe el orden temporal.
+
+- **Bloques.** Se extraen tramos consecutivos de veinte jornadas en lugar de días sueltos. Al conservar tramos completos, mantiene parcialmente el agrupamiento de volatilidad que se detectó en el análisis exploratorio.
+
+```{r}
+NSIM <- 1000
+B    <- 20
+
+simular <- function(lp, metodo, h) {
+  if (metodo == "Normal") {
+    matrix(rnorm(NSIM * h, mean(lp), sd(lp)), nrow = h)
+  } else if (metodo == "Bootstrap") {
+    matrix(sample(lp, NSIM * h, replace = TRUE), nrow = h)
+  } else {
+    nb  <- ceiling(h / B)
+    ini <- matrix(sample(1:(length(lp) - B + 1), NSIM * nb, replace = TRUE), nrow = nb)
+    apply(ini, 2, function(col) as.vector(sapply(col, function(i) lp[i:(i + B - 1)]))[1:h])
+  }
+}
+
+caida_maxima <- function(camino) {
+  v <- exp(cumsum(camino))
+  max(1 - v / cummax(v)) * 100
+}
+```
+
+```{r}
+set.seed(2026)
+
+simulacion <- map_dfr(names(carteras), function(nombre) {
+  rp <- as.vector(R %*% carteras[[nombre]])
+  lp <- log(1 + rp)
+
+  map_dfr(c("Normal", "Bootstrap", "Bloques"), function(metodo) {
+    M   <- simular(lp, metodo, 252)
+    fin <- 100 * exp(colSums(M))
+    dd  <- apply(M, 2, caida_maxima)
+
+    data.frame(
+      Cartera       = nombre,
+      Metodo        = metodo,
+      P5            = round(quantile(fin, 0.05), 1),
+      Mediana       = round(median(fin), 1),
+      P95           = round(quantile(fin, 0.95), 1),
+      Prob_perdida  = round(mean(fin < 100) * 100, 1),
+      Caida_mediana = round(median(dd), 1),
+      Caida_p95     = round(quantile(dd, 0.95), 1),
+      row.names     = NULL
+    )
+  })
+})
+
+pander(simulacion)
+```
+
+Todos los valores están expresados sobre una inversión inicial de 100 unidades. `P5` y `P95` delimitan el intervalo que contiene el 90 % de los escenarios, `Prob_perdida` es el porcentaje de trayectorias que terminan por debajo de 100 y las dos últimas columnas describen la caída máxima sufrida dentro del año.
+
+```{r fig.width=12, fig.height=6}
+set.seed(7)
+
+lp_div <- log(1 + as.vector(R %*% carteras[["Diversificada"]]))
+
+bandas <- map_dfr(c("Normal", "Bootstrap", "Bloques"), function(metodo) {
+  valores <- 100 * exp(apply(simular(lp_div, metodo, 252), 2, cumsum))
+  data.frame(
+    Dia    = 1:252,
+    Metodo = metodo,
+    p05    = apply(valores, 1, quantile, 0.05),
+    p25    = apply(valores, 1, quantile, 0.25),
+    p50    = apply(valores, 1, median),
+    p75    = apply(valores, 1, quantile, 0.75),
+    p95    = apply(valores, 1, quantile, 0.95)
+  )
+})
+
+ggplot(bandas, aes(x = Dia)) +
+  geom_ribbon(aes(ymin = p05, ymax = p95), fill = "steelblue", alpha = 0.20) +
+  geom_ribbon(aes(ymin = p25, ymax = p75), fill = "steelblue", alpha = 0.35) +
+  geom_line(aes(y = p50), color = "#1F3864", linewidth = 0.7) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "grey50") +
+  facet_wrap(~ Metodo) +
+  labs(
+    title    = "Trayectorias simuladas de la cartera diversificada",
+    subtitle = "Banda clara: del percentil 5 al 95. Banda oscura: del 25 al 75. Linea: mediana",
+    x        = "Dias de negociacion",
+    y        = "Valor de la inversion (base 100)"
+  ) +
+  theme_minimal()
+```
+
+```{r fig.width=12, fig.height=6}
+set.seed(7)
+
+finales <- map_dfr(c("Solo S&P 500", "Diversificada", "60/40", "Cubierta 50/50"), function(nombre) {
+  lp <- log(1 + as.vector(R %*% carteras[[nombre]]))
+  map_dfr(c("Normal", "Bootstrap", "Bloques"), function(metodo) {
+    data.frame(
+      Cartera = nombre,
+      Metodo  = metodo,
+      Final   = 100 * exp(colSums(simular(lp, metodo, 252)))
+    )
+  })
+})
+
+ggplot(finales, aes(x = Final, fill = Metodo, color = Metodo)) +
+  geom_density(alpha = 0.18, linewidth = 0.6) +
+  geom_vline(xintercept = 100, linetype = "dashed", color = "grey50") +
+  facet_wrap(~ Cartera, scales = "free", ncol = 2) +
+  labs(
+    title = "Distribucion del valor final a un anio",
+    x     = "Valor de la inversion (base 100)",
+    y     = "Densidad"
+  ) +
+  theme_minimal()
+```
+
+### 10.4 ¿Cuánto importa el supuesto de normalidad?
+
+El informe ha insistido en que los rendimientos no son normales. Conviene comprobar qué consecuencias tiene eso dentro de la simulación. La primera comprobación es directa: comparar los cuantiles bajos observados en los rendimientos diarios de cada cartera con los que predice una normal de igual media y desviación.
+
+```{r}
+colas <- map_dfr(c("Solo S&P 500", "Diversificada", "Pesos iguales"), function(nombre) {
+  rp <- as.vector(R %*% carteras[[nombre]])
+  data.frame(
+    Cartera     = nombre,
+    P1_empirico = round(quantile(rp, 0.01) * 100, 2),
+    P1_normal   = round(qnorm(0.01, mean(rp), sd(rp)) * 100, 2),
+    P5_empirico = round(quantile(rp, 0.05) * 100, 2),
+    P5_normal   = round(qnorm(0.05, mean(rp), sd(rp)) * 100, 2),
+    Peor_dia    = round(min(rp) * 100, 2),
+    Curtosis    = round(mean((rp - mean(rp))^4) / sd(rp)^4, 1),
+    row.names   = NULL
+  )
+})
+
+pander(colas)
+```
+
+La segunda comprobación repite la simulación con un horizonte de diez jornadas en lugar de un año.
+
+```{r}
+set.seed(2026)
+
+corto <- map_dfr(c("Solo S&P 500", "Diversificada", "Mejor relacion"), function(nombre) {
+  lp <- log(1 + as.vector(R %*% carteras[[nombre]]))
+  map_dfr(c("Normal", "Bootstrap", "Bloques"), function(metodo) {
+    fin <- 100 * exp(colSums(simular(lp, metodo, 10)))
+    data.frame(
+      Cartera      = nombre,
+      Metodo       = metodo,
+      P1           = round(quantile(fin, 0.01), 1),
+      P5           = round(quantile(fin, 0.05), 1),
+      Mediana      = round(median(fin), 1),
+      P99          = round(quantile(fin, 0.99), 1),
+      Prob_perdida = round(mean(fin < 100) * 100, 1),
+      row.names    = NULL
+    )
+  })
+})
+
+pander(corto)
+```
+
+### 10.5 Análisis de la simulación
+
+**Las carteras aleatorias delimitan lo que era alcanzable.** Las 5.000 combinaciones cubren rendimientos anualizados entre −6,7 % y 18,9 % y volatilidades entre 4,3 % y 33,5 %. La nube tiene la forma habitual: el rendimiento aumenta con el riesgo, pero con una dispersión enorme, de manera que para casi cualquier nivel de volatilidad existían carteras buenas y carteras malas. La relación entre rendimiento y volatilidad llega como máximo a 1,218.
+
+**La diversificación hecha a mano funcionó mejor que el índice.** La cartera diversificada obtuvo un 12,31 % anual con un 12,67 % de volatilidad, frente al 11,67 % y el 17,24 % del S&P 500. Su relación entre rendimiento y riesgo es de 0,972 contra 0,677 del índice, es decir, más rendimiento con casi un tercio menos de volatilidad. La cartera de pesos iguales, que no requiere ninguna decisión, alcanza 0,750 y también supera al índice en esa medida.
+
+**La cartera clásica 60/40 fue la peor del grupo.** Obtuvo un 2,47 % anual con un 12,54 % de volatilidad y una relación de 0,197. La causa está documentada en el apartado 9: los bonos del Tesoro a largo plazo perdieron un 44 % de su precio en el periodo y su correlación con las acciones fue de 0,093, de modo que aportaron riesgo sin aportar ni rendimiento ni protección. Es un recordatorio de que una regla de cartera reputada puede fallar durante cinco años seguidos si cambia el régimen de tasas de interés.
+
+**Las dos carteras elegidas por la simulación deben leerse con cuidado.** La de mínima varianza logra un 4,49 % con apenas un 4,34 % de volatilidad, pero lo hace apoyándose en el índice del dólar (16 %), en el fondo inverso SH (15 %) y en el euro (11,1 %), es decir, en instrumentos de cobertura que cuestan rendimiento. La de mejor relación alcanza un 15,17 % con un 12,46 %, y concentra un 27,9 % en oro, el activo que más subió. Ninguna de las dos es una recomendación: ambas se eligieron mirando los mismos datos con los que después se miden, lo que garantiza que su desempeño esté sobreestimado. Un ejercicio honesto exigiría seleccionar los pesos en un periodo y evaluarlos en otro posterior.
+
+**A un año, los tres motores de simulación dicen casi lo mismo.** Para la cartera diversificada, el percentil 5 queda entre 91,1 y 92,6 según el método, la mediana entre 111,9 y 113,4 y la probabilidad de terminar con pérdida entre el 15,4 % y el 18,7 %. Para el S&P 500 las diferencias son algo mayores, con probabilidades de pérdida entre el 20,2 % y el 26,3 %, pero siguen siendo pequeñas frente a la incertidumbre total.
+
+**La diferencia sí aparece en el horizonte corto.** En los rendimientos diarios, la normal subestima claramente la cola izquierda: el percentil 1 observado del S&P 500 es de −2,99 %, mientras que la normal predice −2,48 %, y el peor día del periodo fue de −5,97 %, un valor que una normal considera prácticamente imposible. La curtosis de 9,9 confirma el exceso de valores extremos. A diez jornadas esa diferencia todavía se nota: el percentil 1 del valor final es 92,9 con el motor normal y 91,8 y 91,6 con el bootstrap y con los bloques. A 252 jornadas la diferencia se desvanece, porque sumar muchos rendimientos independientes acerca el resultado a una normal por el teorema central del límite. La conclusión práctica es precisa: para medir el riesgo de un año el supuesto de normalidad no cambia mucho las cifras, pero para gestionar el riesgo diario o semanal de una estrategia de corto plazo sí lo hace, y ahí conviene el enfoque no paramétrico.
+
+**La cobertura vuelve a mostrar su costo.** La cartera cubierta al 50 % termina entre 99 y 103 en el 90 % de los escenarios, con una caída máxima mediana del 0,9 %. Casi no puede perder, pero tampoco puede ganar. Es la versión simulada de lo que el apartado 9 mostró con datos reales.
+
+**Los límites del ejercicio deben quedar claros.** Los tres motores suponen que el futuro se parece al pasado reciente: el normal toma su media y su desviación, y los dos no paramétricos reutilizan literalmente los rendimientos observados. Ninguno incorpora cambios de régimen, ni la inestabilidad de las correlaciones documentada en el apartado 9, ni costos de transacción, ni el efecto de reequilibrar a diario una cartera real. El motor de bloques recupera parte de la dependencia temporal, pero solo dentro de tramos de veinte días. Por eso los resultados deben leerse como un rango de escenarios compatible con el pasado, y no como una previsión.
+
+## 11. Posibles pasos siguientes
+
+El informe cierra la etapa descriptiva del proyecto. Los pasos que siguen se agrupan en seis frentes.
+
+**Datos.** Sustituir el precio de cierre por el cierre ajustado para incorporar dividendos e intereses, lo que corregiría la subestimación del rendimiento de Microsoft, de Anglo American y sobre todo del fondo de bonos. Revisar los saltos por cambio de contrato en las series continuas de futuros, especialmente los días extremos del gas natural y de la plata. Ampliar la ventana más allá de cinco años para cubrir más de un régimen de mercado, aceptando que no todos los activos tienen histórico suficiente.
+
+**Dependencia.** La correlación de distancias detectó una posible dependencia no monótona entre el petróleo y la renta variable que la correlación de rangos no ve. El paso natural es modelar la estructura de dependencia con cópulas, que separan las distribuciones individuales de la forma en que se relacionan, y contrastar la dependencia en las colas, es decir, si los activos caen juntos con más frecuencia de la que sugiere su correlación media. Una alternativa complementaria son los modelos de correlación condicional variable en el tiempo, coherentes con la inestabilidad que mostró el análisis de ventanas móviles.
+
+**Series de tiempo.** Ajustar modelos de la familia ARIMA sobre los rendimientos y modelos de volatilidad condicional para la varianza, justificados por el agrupamiento de volatilidad observado. Contrastar formalmente la estacionariedad de las series transformadas y evaluar modelos de cambio de régimen, que permitirían representar los tramos en que las correlaciones cambian de signo.
+
+**Optimización de carteras.** Sustituir el sorteo aleatorio de pesos por una optimización explícita: mínima varianza, máxima relación entre rendimiento y riesgo, y paridad de riesgo. Estimar la matriz de covarianzas con métodos robustos o de contracción, porque con veinte activos y mil observaciones la estimación directa es inestable. Y, sobre todo, validar fuera de muestra: elegir los pesos en un periodo, aplicarlos en el siguiente, reequilibrar con una regla fija e incluir costos de transacción. La cartera de pesos iguales debe usarse como referencia exigente, ya que en este periodo superó al índice sin necesidad de estimar nada.
+
+**Simulación.** Reemplazar el bootstrap de bloques de longitud fija por un bootstrap estacionario, con longitud aleatoria, que evita artefactos en los extremos de cada tramo. Simular la cartera completa a partir de las marginales empíricas y una cópula ajustada, en lugar de simular directamente el rendimiento agregado, lo que permitiría que la dependencia entre activos cambie con el escenario. Añadir escenarios de estrés basados en episodios históricos concretos y medir el resultado con déficit esperado además de valor en riesgo.
+
+**Evaluación y decisión.** Construir reglas de decisión a partir de los pronósticos, evaluarlas con validación progresiva en el tiempo y comparar su desempeño con pruebas no paramétricas, que es el terreno natural para contrastar estrategias cuyos rendimientos no son normales. Antes de cualquier aplicación con dinero real, el proyecto debería pasar por una fase de simulación en papel, con datos en tiempo real y costos incluidos.
+
+**Riesgos que conviene tener presentes.** El principal es el sobreajuste: cuantas más combinaciones se prueben sobre el mismo periodo, más probable es encontrar una que funcione por azar, como ilustran las dos carteras seleccionadas por la simulación. El segundo es la dependencia de una única ventana temporal. El tercero, de orden práctico, es que todo el análisis se apoya en una sola fuente de datos gratuita que, como se documentó en el apartado 6, revisa sus series sin previo aviso. Este trabajo es académico y no constituye una recomendación de inversión.
